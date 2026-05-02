@@ -1391,8 +1391,19 @@ function renderMigration(el) {
     </div>
 
     <div class="card">
-      <h3>Шаг 5: Контакты, активности, файлы</h3>
-      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции сделок</div>
+      <h3>Шаг 5: Миграция контактов</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Перенос всех ~143 741 контактов из Битрикса. Батчами по 50, ~2-2.5 часа. На первом батче подтягивается схема кастомных полей контактов. Прогресс сохраняется в <code>migrationState/contacts</code> — можно прервать и продолжить с того же offset.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="migrateContacts()" style="background:var(--gn);color:#0e0e12">👥 Перенести контакты (~143 741)</button>
+      </div>
+      <div id="contacts-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 6: Компании, активности, файлы</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции контактов</div>
     </div>
   `;
 }
@@ -1509,6 +1520,100 @@ window.migrateDeals = async function() {
     } catch (e) {
       el.innerHTML += `\n<span class="err">✗ ${e.message}</span>\n`;
       el.innerHTML += `<span class="info">Можно нажать "Перенести сделки" снова — продолжится с offset ${offset}</span>\n`;
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      break;
+    }
+  }
+};
+
+window.migrateContacts = async function() {
+  if (!confirm('Запустить миграцию ~143 741 контактов?\n\nЭто займёт ~2-2.5 часа. Идёт батчами по 50, прогресс сохраняется. Можно прервать и продолжить — миграция возобновится с последнего offset.')) return;
+
+  // Wake Lock — не давать экрану засыпать
+  let wakeLock = null;
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+
+  const el = document.getElementById('contacts-mig-result');
+  el.style.display = '';
+  el.innerHTML = '⏳ Запускаем миграцию контактов...\n';
+
+  let offset = 0;
+  let totalProcessed = 0;
+  let totalErrors = 0;
+  let total = null;
+  let companyIdsCollected = 0;
+  let customFieldsCount = null;
+  const startedAt = Date.now();
+
+  while (true) {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_URL}/api/migrate-contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, offset, limit: 50 })
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        el.innerHTML += `\n<span class="err">✗ Ошибка: ${d.error}</span>\n`;
+        el.innerHTML += `<span class="info">Можно нажать "Перенести контакты" снова — продолжится с offset ${offset}</span>\n`;
+        break;
+      }
+
+      total = d.total;
+      totalProcessed += d.processed;
+      totalErrors += d.errors;
+      companyIdsCollected = d.companyIdsCollected || companyIdsCollected;
+      if (d.customFieldsCount !== null && d.customFieldsCount !== undefined) {
+        customFieldsCount = d.customFieldsCount;
+      }
+
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+      const speed = totalProcessed > 0 ? (totalProcessed / elapsed).toFixed(1) : 0;
+      const remaining = total - totalProcessed;
+      const etaSec = speed > 0 ? Math.round(remaining / speed) : 0;
+      const etaH = Math.floor(etaSec / 3600);
+      const etaMin = Math.floor((etaSec % 3600) / 60);
+      const etaS = etaSec % 60;
+      const pct = total > 0 ? Math.round(totalProcessed / total * 100) : 0;
+
+      const etaText = etaH > 0 ? `${etaH}ч ${etaMin}м` : `${etaMin}м ${etaS}с`;
+      const elapsedText = elapsed >= 3600
+        ? `${Math.floor(elapsed/3600)}ч ${Math.floor((elapsed%3600)/60)}м`
+        : `${Math.floor(elapsed/60)}м ${elapsed%60}с`;
+
+      el.innerHTML = `<span class="info">⚙ Обработано ${totalProcessed.toLocaleString('ru')} из ${total.toLocaleString('ru')} (${pct}%)</span>\n\n`;
+      el.innerHTML += `Прошло: ${elapsedText} · Скорость: ${speed} конт/сек · Осталось: ~${etaText}\n`;
+      el.innerHTML += `Ошибок: ${totalErrors > 0 ? `<span class="err">${totalErrors}</span>` : 0}\n`;
+      if (customFieldsCount !== null) el.innerHTML += `Кастомных полей в схеме: ${customFieldsCount}\n`;
+      el.innerHTML += `Уникальных компаний для миграции: ${companyIdsCollected}\n\n`;
+      el.innerHTML += `<span class="ok">█</span>`.repeat(Math.floor(pct/2)) + `<span class="gray">░</span>`.repeat(50 - Math.floor(pct/2)) + ` ${pct}%\n`;
+      el.scrollTop = el.scrollHeight;
+
+      if (d.isLast) {
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        el.innerHTML += `\n<span class="ok">✓ Миграция контактов завершена!</span>\n\n`;
+        el.innerHTML += `Всего обработано: <span class="ok">${totalProcessed.toLocaleString('ru')}</span>\n`;
+        el.innerHTML += `Время: ${elapsedText}\n`;
+        el.innerHTML += `Ошибок: ${totalErrors}\n`;
+        el.innerHTML += `Компаний для миграции: <span class="ok">${companyIdsCollected}</span>\n\n`;
+        el.innerHTML += `<span class="info">Дальше: миграция компаний и активностей</span>`;
+        if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        loadDashboardStatsIfPossible();
+        break;
+      }
+
+      offset = d.nextOffset;
+
+      // Маленькая пауза
+      await new Promise(r => setTimeout(r, 200));
+    } catch (e) {
+      el.innerHTML += `\n<span class="err">✗ ${e.message}</span>\n`;
+      el.innerHTML += `<span class="info">Можно нажать "Перенести контакты" снова — продолжится с offset ${offset}</span>\n`;
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
       break;
     }
