@@ -685,8 +685,16 @@ function renderMigration(el) {
     </div>
 
     <div class="card">
-      <h3>Шаг 4: Миграция сделок</h3>
-      <div style="font-size:12px;color:var(--t3)">Будет доступно после диагностики</div>
+      <h3>Шаг 4: Миграция воронки UniqBook Старт</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Сначала переносим структуру воронки (название + 16 стадий + схема кастомных полей), затем сделки батчами по 50.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="migratePipeline()">📋 Перенести воронку</button>
+        <button class="btn btn-sm" onclick="migrateDeals()" style="background:var(--gn);color:#0e0e12">📦 Перенести сделки (~22 600)</button>
+      </div>
+      <div id="pipeline-mig-result" style="display:none;margin-top:10px"></div>
+      <div id="deals-mig-result" class="log-area" style="display:none;margin-top:10px"></div>
     </div>
 
     <div class="card">
@@ -694,6 +702,130 @@ function renderMigration(el) {
       <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции сделок</div>
     </div>
   `;
+}
+
+window.migratePipeline = async function() {
+  const el = document.getElementById('pipeline-mig-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Переносим воронку...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, categoryId: 3 })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${d.error}</div>`;
+      return;
+    }
+    let html = `<div class="summary" style="background:rgba(63,216,142,.06);border:1px solid rgba(63,216,142,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:8px">✓ Воронка перенесена</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7">
+        <b>Название:</b> ${escapeHtml(d.name)}<br>
+        <b>Стадий:</b> ${d.stagesCount}<br>
+        <b>Кастомных полей в схеме:</b> ${d.customFieldsCount}<br>
+        <b>Pipeline ID в Firebase:</b> <code>${d.pipelineId}</code>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--t3)">Стадии:</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:4px;line-height:1.7">
+        ${d.stages.map(s => '· ' + escapeHtml(s.name)).join('<br>')}
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--ac2)">Теперь можно нажать "Перенести сделки" →</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${e.message}</div>`;
+  }
+};
+
+window.migrateDeals = async function() {
+  if (!confirm('Запустить миграцию ~22 600 сделок?\n\nЭто займёт ~20-30 минут. Идёт батчами по 50, прогресс сохраняется. Можно прервать и продолжить.')) return;
+
+  // Wake Lock
+  let wakeLock = null;
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+
+  const el = document.getElementById('deals-mig-result');
+  el.style.display = '';
+  el.innerHTML = '⏳ Запускаем миграцию сделок...\n';
+
+  let offset = 0;
+  let totalProcessed = 0;
+  let totalErrors = 0;
+  let totalContactIds = new Set();
+  let totalCompanyIds = new Set();
+  let total = null;
+  const startedAt = Date.now();
+
+  while (true) {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_URL}/api/migrate-deals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, categoryId: 3, offset, limit: 50 })
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        el.innerHTML += `\n<span class="err">✗ Ошибка: ${d.error}</span>\n`;
+        el.innerHTML += `<span class="info">Можно нажать "Перенести сделки" снова — продолжится с offset ${offset}</span>\n`;
+        break;
+      }
+
+      total = d.total;
+      totalProcessed += d.processed;
+      totalErrors += d.errors;
+
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+      const speed = totalProcessed > 0 ? (totalProcessed / elapsed).toFixed(1) : 0;
+      const remaining = total - totalProcessed;
+      const etaSec = speed > 0 ? Math.round(remaining / speed) : 0;
+      const etaMin = Math.floor(etaSec / 60);
+      const etaS = etaSec % 60;
+      const pct = Math.round(totalProcessed / total * 100);
+
+      el.innerHTML = `<span class="info">⚙ Обработано ${totalProcessed.toLocaleString('ru')} из ${total.toLocaleString('ru')} (${pct}%)</span>\n\n`;
+      el.innerHTML += `Прошло: ${Math.floor(elapsed/60)}м ${elapsed%60}с · Скорость: ${speed} сделок/сек · Осталось: ~${etaMin}м ${etaS}с\n`;
+      el.innerHTML += `Ошибок: ${totalErrors > 0 ? `<span class="err">${totalErrors}</span>` : 0}\n\n`;
+      el.innerHTML += `<span class="ok">█</span>`.repeat(Math.floor(pct/2)) + `<span class="gray">░</span>`.repeat(50 - Math.floor(pct/2)) + ` ${pct}%\n`;
+      el.scrollTop = el.scrollHeight;
+
+      if (d.isLast) {
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        el.innerHTML += `\n<span class="ok">✓ Миграция сделок завершена!</span>\n\n`;
+        el.innerHTML += `Всего обработано: <span class="ok">${totalProcessed.toLocaleString('ru')}</span>\n`;
+        el.innerHTML += `Время: ${minutes}м ${seconds}с\n`;
+        el.innerHTML += `Ошибок: ${totalErrors}\n\n`;
+        el.innerHTML += `<span class="info">Дальше: миграция контактов и компаний (упомянутых в сделках)</span>`;
+        if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        // Обновим счётчик на главной
+        loadDashboardStatsIfPossible();
+        break;
+      }
+
+      offset = d.nextOffset;
+
+      // Маленькая пауза чтобы не перегружать
+      await new Promise(r => setTimeout(r, 200));
+    } catch (e) {
+      el.innerHTML += `\n<span class="err">✗ ${e.message}</span>\n`;
+      el.innerHTML += `<span class="info">Можно нажать "Перенести сделки" снова — продолжится с offset ${offset}</span>\n`;
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      break;
+    }
+  }
+};
+
+function loadDashboardStatsIfPossible() {
+  // Пытаемся обновить если открыта главная
+  const fn = window._reloadStats;
+  if (fn) fn();
 }
 
 window.diagnosePipeline = async function() {
