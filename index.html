@@ -316,6 +316,264 @@ tr:hover td { background: var(--bg3); }
   .sidebar { width: 100%; }
   .main { padding: 16px; }
 }
+
+/* ── Deals page ───────────────────────────────────── */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.toolbar input, .toolbar select {
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  border-radius: 8px;
+  color: var(--t1);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 7px 11px;
+}
+.toolbar input { flex: 1; min-width: 180px; }
+.toolbar input:focus, .toolbar select:focus { outline: none; border-color: var(--ac); }
+.view-tabs { display: flex; gap: 4px; }
+.view-tab {
+  padding: 7px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  border-radius: 8px;
+  color: var(--t2);
+  cursor: pointer;
+  font-size: 12px;
+}
+.view-tab.active {
+  background: var(--acbg);
+  border-color: var(--ac);
+  color: var(--ac2);
+  font-weight: 600;
+}
+.deals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.deals-table th, .deals-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--b1);
+}
+.deals-table th {
+  color: var(--t3);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: var(--bg2);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.deals-table td { color: var(--t2); }
+.deals-table tr.row { cursor: pointer; }
+.deals-table tr.row:hover td { background: var(--bg3); }
+.deals-table .deal-title {
+  color: var(--t1);
+  font-weight: 600;
+  max-width: 350px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stage-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg3);
+  color: var(--t2);
+  border: 1px solid var(--b1);
+  white-space: nowrap;
+}
+.stage-badge.success { background: rgba(63,216,142,.12); color: var(--gn); border-color: rgba(63,216,142,.3); }
+.stage-badge.failed { background: rgba(240,89,117,.12); color: var(--rd); border-color: rgba(240,89,117,.3); }
+.money { color: var(--gn); font-weight: 600; font-variant-numeric: tabular-nums; }
+.money.zero { color: var(--t3); font-weight: 400; }
+.pagination {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pagination .pg-btn {
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  color: var(--t2);
+  border-radius: 6px;
+  padding: 6px 11px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.pagination .pg-btn:hover { background: var(--bg4); }
+.pagination .pg-btn:disabled { opacity: .3; cursor: not-allowed; }
+.pagination .pg-info { color: var(--t3); font-size: 12px; padding: 0 8px; }
+
+/* Kanban */
+.kanban-wrap {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  margin: 0 -8px;
+  padding-left: 8px;
+}
+.kanban-col {
+  flex-shrink: 0;
+  width: 280px;
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  padding: 10px;
+  max-height: calc(100vh - 240px);
+  display: flex;
+  flex-direction: column;
+}
+.kanban-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--b1);
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--t2);
+  font-weight: 600;
+}
+.kanban-col-header .col-count {
+  color: var(--t3);
+  font-weight: 500;
+  font-size: 11px;
+  background: var(--bg3);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+.kanban-col-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kanban-card {
+  background: var(--bg3);
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.kanban-card:hover { border-color: var(--ac); }
+.kanban-card-title {
+  font-size: 12px;
+  color: var(--t1);
+  font-weight: 600;
+  margin-bottom: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+}
+.kanban-card-meta {
+  font-size: 11px;
+  color: var(--t3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.kanban-card-money {
+  color: var(--gn);
+  font-weight: 600;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Deal card modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 14px;
+  padding: 22px 26px;
+  width: 100%;
+  max-width: 760px;
+  margin: 20px auto;
+  position: relative;
+}
+.modal .close-x {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--t3);
+  font-size: 24px;
+  cursor: pointer;
+  width: auto;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+}
+.modal .close-x:hover { color: var(--t1); }
+.modal h2 { font-size: 18px; margin-bottom: 4px; padding-right: 30px; }
+.modal-sub { color: var(--t3); font-size: 12px; margin-bottom: 18px; }
+.field-grid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 8px 18px;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.field-grid .fl { color: var(--t3); padding: 4px 0; }
+.field-grid .fv { color: var(--t1); padding: 4px 0; word-break: break-word; }
+.section-h {
+  font-size: 12px;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin: 18px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--b1);
+}
+.muted { color: var(--t3); }
+.empty-cell { color: var(--t3); font-style: italic; font-size: 12px; }
+.cf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .field-grid { grid-template-columns: 1fr; gap: 2px 0; }
+  .field-grid .fl { color: var(--t3); padding-top: 8px; padding-bottom: 0; font-size: 11px; }
+  .field-grid .fv { padding-top: 0; padding-bottom: 8px; }
+  .cf-grid { grid-template-columns: 1fr; }
+  .kanban-col { width: 240px; }
+}
 </style>
 </head>
 <body>
@@ -533,7 +791,7 @@ function navigate(page) {
   const main = document.getElementById('main');
   if (page === 'dashboard') renderDashboard(main);
   else if (page === 'contacts') renderEmptyPage(main, 'Контакты', 'Здесь будут все контакты CRM. Сейчас данных нет — мигрируем из Битрикса.');
-  else if (page === 'deals') renderEmptyPage(main, 'Сделки', 'Здесь будут сделки по воронкам. Сейчас данных нет — мигрируем из Битрикса.');
+  else if (page === 'deals') renderDeals(main);
   else if (page === 'tasks') renderEmptyPage(main, 'Задачи', 'Здесь будут задачи. Сейчас данных нет — мигрируем из Битрикса.');
   else if (page === 'users') renderUsers(main);
   else if (page === 'migration') renderMigration(main);
@@ -576,14 +834,35 @@ function renderDashboard(el) {
 
 async function loadDashboardStats() {
   try {
-    const snap = await get(ref(db, '/'));
-    const data = snap.val() || {};
-    document.getElementById('s-contacts').textContent = Object.keys(data.contacts || {}).length;
-    document.getElementById('s-deals').textContent = Object.keys(data.deals || {}).length;
-    document.getElementById('s-tasks').textContent = Object.keys(data.tasks || {}).length;
-    document.getElementById('s-users').textContent = Object.keys(data.users || {}).length;
+    // Используем shallow=true чтобы не качать всё содержимое 22к сделок —
+    // получим только список ключей
+    const [contactsKeys, dealsKeys, tasksKeys, usersKeys] = await Promise.all([
+      fetchShallowKeys('contacts'),
+      fetchShallowKeys('deals'),
+      fetchShallowKeys('tasks'),
+      fetchShallowKeys('users'),
+    ]);
+    document.getElementById('s-contacts').textContent = contactsKeys.toLocaleString('ru');
+    document.getElementById('s-deals').textContent = dealsKeys.toLocaleString('ru');
+    document.getElementById('s-tasks').textContent = tasksKeys.toLocaleString('ru');
+    document.getElementById('s-users').textContent = usersKeys.toLocaleString('ru');
   } catch (e) {
     console.warn('stats error:', e);
+  }
+}
+
+async function fetchShallowKeys(path) {
+  // Firebase REST API с shallow=true — возвращает только верхний уровень ключей
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const url = `https://pllato-crm-default-rtdb.firebaseio.com/${path}.json?shallow=true&auth=${idToken}`;
+    const r = await fetch(url);
+    if (!r.ok) return 0;
+    const data = await r.json();
+    if (!data) return 0;
+    return Object.keys(data).length;
+  } catch (e) {
+    return 0;
   }
 }
 
@@ -605,6 +884,420 @@ async function testConnection() {
   } catch (e) {
     el.innerHTML = `<span style="color:var(--rd)">✗ Worker недоступен:</span> ${e.message}`;
   }
+}
+
+// ── Deals state (in-memory cache) ────────────────────────
+const dealsState = {
+  loaded: false,
+  deals: [],          // массив всех сделок
+  pipeline: null,     // структура воронки
+  customSchema: null, // схема кастомных полей
+  users: {},          // map: uid -> {name, lastName, email}
+  view: 'list',       // 'list' | 'kanban'
+  search: '',
+  stageFilter: '',
+  responsibleFilter: '',
+  page: 0,
+  pageSize: 50,
+};
+
+async function renderDeals(el) {
+  el.innerHTML = `
+    <div class="page-title">💼 Сделки</div>
+    <div class="page-sub">Воронка UniqBook Старт</div>
+    <div class="card" id="deals-loader">
+      <div class="empty">⏳ Загружаем данные из Firebase...</div>
+    </div>
+  `;
+
+  // Один раз загружаем всё что нужно
+  if (!dealsState.loaded) {
+    await loadDealsData();
+  }
+
+  if (!dealsState.deals.length) {
+    document.getElementById('deals-loader').innerHTML = `
+      <div class="empty">
+        Сделки не найдены в базе.<br>
+        Запустите миграцию из раздела <b>Миграция Bitrix</b>.
+      </div>
+    `;
+    return;
+  }
+
+  renderDealsLayout(el);
+}
+
+async function loadDealsData() {
+  try {
+    const [dealsSnap, pipelineSnap, schemaSnap, usersSnap] = await Promise.all([
+      dbGet(dbRef(fbDb, 'deals')),
+      dbGet(dbRef(fbDb, 'pipelines/pipeline_3')),
+      dbGet(dbRef(fbDb, 'customFieldsSchema/deal')),
+      dbGet(dbRef(fbDb, 'users')),
+    ]);
+
+    const dealsObj = dealsSnap.val() || {};
+    dealsState.deals = Object.values(dealsObj);
+    dealsState.pipeline = pipelineSnap.val() || null;
+    dealsState.customSchema = schemaSnap.val() || {};
+    dealsState.users = usersSnap.val() || {};
+    dealsState.loaded = true;
+
+    // Сортируем по дате создания (сначала новые)
+    dealsState.deals.sort((a, b) => {
+      return (b.bitrixDateCreate || '').localeCompare(a.bitrixDateCreate || '');
+    });
+
+    console.log(`Loaded ${dealsState.deals.length} deals`);
+  } catch (e) {
+    console.error('loadDealsData error:', e);
+  }
+}
+
+function renderDealsLayout(el) {
+  el.innerHTML = `
+    <div class="page-title">💼 Сделки</div>
+    <div class="page-sub">Воронка <b>${escapeHtml(dealsState.pipeline?.name || 'Неизвестно')}</b> · ${dealsState.deals.length.toLocaleString('ru')} сделок</div>
+
+    <div class="toolbar">
+      <input type="text" id="deal-search" placeholder="🔍 Поиск по названию..." value="${escapeHtml(dealsState.search)}">
+      <select id="stage-filter">
+        <option value="">Все стадии</option>
+        ${getStagesSorted().map(s => `<option value="${escapeHtml(s.statusId)}" ${s.statusId === dealsState.stageFilter ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+      </select>
+      <select id="resp-filter">
+        <option value="">Все ответственные</option>
+        ${getUsersForFilter().map(u => `<option value="${escapeHtml(u.uid)}" ${u.uid === dealsState.responsibleFilter ? 'selected' : ''}>${escapeHtml(u.fullName)}</option>`).join('')}
+      </select>
+      <div class="view-tabs">
+        <div class="view-tab ${dealsState.view === 'list' ? 'active' : ''}" data-view="list">📋 Список</div>
+        <div class="view-tab ${dealsState.view === 'kanban' ? 'active' : ''}" data-view="kanban">📊 Канбан</div>
+      </div>
+    </div>
+
+    <div id="deals-content"></div>
+  `;
+
+  // Listeners
+  document.getElementById('deal-search').addEventListener('input', e => {
+    dealsState.search = e.target.value;
+    dealsState.page = 0;
+    renderDealsContent();
+  });
+  document.getElementById('stage-filter').addEventListener('change', e => {
+    dealsState.stageFilter = e.target.value;
+    dealsState.page = 0;
+    renderDealsContent();
+  });
+  document.getElementById('resp-filter').addEventListener('change', e => {
+    dealsState.responsibleFilter = e.target.value;
+    dealsState.page = 0;
+    renderDealsContent();
+  });
+  document.querySelectorAll('[data-view]').forEach(t => {
+    t.addEventListener('click', () => {
+      dealsState.view = t.dataset.view;
+      renderDealsLayout(el);
+    });
+  });
+
+  renderDealsContent();
+}
+
+function getFilteredDeals() {
+  let arr = dealsState.deals;
+  if (dealsState.search) {
+    const q = dealsState.search.toLowerCase();
+    arr = arr.filter(d => (d.title || '').toLowerCase().includes(q));
+  }
+  if (dealsState.stageFilter) {
+    arr = arr.filter(d => d.stageId === dealsState.stageFilter);
+  }
+  if (dealsState.responsibleFilter) {
+    arr = arr.filter(d => d.responsibleUid === dealsState.responsibleFilter);
+  }
+  return arr;
+}
+
+function renderDealsContent() {
+  const c = document.getElementById('deals-content');
+  if (!c) return;
+  const arr = getFilteredDeals();
+
+  if (dealsState.view === 'list') {
+    renderDealsList(c, arr);
+  } else {
+    renderDealsKanban(c, arr);
+  }
+}
+
+function renderDealsList(c, arr) {
+  if (!arr.length) {
+    c.innerHTML = `<div class="card"><div class="empty">Не найдено сделок по фильтрам</div></div>`;
+    return;
+  }
+  const totalPages = Math.ceil(arr.length / dealsState.pageSize);
+  const page = Math.min(dealsState.page, totalPages - 1);
+  const start = page * dealsState.pageSize;
+  const end = Math.min(start + dealsState.pageSize, arr.length);
+  const slice = arr.slice(start, end);
+
+  let html = `<div class="card" style="padding:0;overflow:auto">
+    <table class="deals-table">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Стадия</th>
+          <th>Сумма</th>
+          <th>Ответственный</th>
+          <th>Создано</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  for (const d of slice) {
+    const stage = dealsState.pipeline?.stages?.[d.stageId];
+    const stageName = stage?.name || d.stageId || '—';
+    const stageCls = stage?.semantics === 'S' ? 'success' : stage?.semantics === 'F' ? 'failed' : '';
+    const respUser = dealsState.users[d.responsibleUid];
+    const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+    const opp = d.opportunity || 0;
+    const date = d.bitrixDateCreate ? d.bitrixDateCreate.slice(0, 10) : '—';
+
+    html += `<tr class="row" data-deal-id="${escapeHtml(d.bitrixId)}">
+      <td><div class="deal-title">${escapeHtml(d.title || '(без названия)')}</div></td>
+      <td><span class="stage-badge ${stageCls}">${escapeHtml(stageName)}</span></td>
+      <td class="money ${opp === 0 ? 'zero' : ''}">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
+      <td>${escapeHtml(respName)}</td>
+      <td class="muted">${date}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  // Pagination
+  html += `<div class="pagination">
+    <button class="pg-btn" data-pg="first" ${page === 0 ? 'disabled' : ''}>« Первая</button>
+    <button class="pg-btn" data-pg="prev" ${page === 0 ? 'disabled' : ''}>‹ Назад</button>
+    <span class="pg-info">${page + 1} из ${totalPages} · показано ${start + 1}–${end} из ${arr.length.toLocaleString('ru')}</span>
+    <button class="pg-btn" data-pg="next" ${page >= totalPages - 1 ? 'disabled' : ''}>Вперёд ›</button>
+    <button class="pg-btn" data-pg="last" ${page >= totalPages - 1 ? 'disabled' : ''}>Последняя »</button>
+  </div>`;
+
+  c.innerHTML = html;
+
+  // Click on row
+  c.querySelectorAll('tr.row').forEach(r => {
+    r.addEventListener('click', () => openDealCard(r.dataset.dealId));
+  });
+  // Pagination
+  c.querySelectorAll('[data-pg]').forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.dataset.pg === 'first') dealsState.page = 0;
+      else if (b.dataset.pg === 'prev') dealsState.page = Math.max(0, page - 1);
+      else if (b.dataset.pg === 'next') dealsState.page = Math.min(totalPages - 1, page + 1);
+      else if (b.dataset.pg === 'last') dealsState.page = totalPages - 1;
+      renderDealsContent();
+    });
+  });
+}
+
+function renderDealsKanban(c, arr) {
+  const stages = getStagesSorted();
+  if (!stages.length) {
+    c.innerHTML = `<div class="card"><div class="empty">Нет стадий воронки</div></div>`;
+    return;
+  }
+
+  // Группируем по стадии
+  const byStage = {};
+  for (const s of stages) byStage[s.statusId] = [];
+  for (const d of arr) {
+    if (byStage[d.stageId]) byStage[d.stageId].push(d);
+    else { // если стадия не из этой воронки
+      if (!byStage['__other']) byStage['__other'] = [];
+      byStage['__other'].push(d);
+    }
+  }
+
+  let html = `<div class="kanban-wrap">`;
+  // Лимит карточек на колонку чтобы DOM не зависал
+  const MAX_PER_COL = 200;
+
+  for (const s of stages) {
+    const cards = byStage[s.statusId] || [];
+    const cls = s.semantics === 'S' ? 'success' : s.semantics === 'F' ? 'failed' : '';
+    html += `<div class="kanban-col">
+      <div class="kanban-col-header">
+        <span><span class="stage-badge ${cls}" style="margin-right:6px;font-size:10px;padding:2px 6px">${escapeHtml(s.name)}</span></span>
+        <span class="col-count">${cards.length.toLocaleString('ru')}</span>
+      </div>
+      <div class="kanban-col-cards">`;
+
+    for (const d of cards.slice(0, MAX_PER_COL)) {
+      const respUser = dealsState.users[d.responsibleUid];
+      const respShort = respUser ? (respUser.lastName || respUser.name || '').slice(0, 12) : '';
+      const opp = d.opportunity || 0;
+      html += `<div class="kanban-card" data-deal-id="${escapeHtml(d.bitrixId)}">
+        <div class="kanban-card-title">${escapeHtml(d.title || '(без названия)')}</div>
+        <div class="kanban-card-meta">
+          <span>${escapeHtml(respShort)}</span>
+          ${opp ? `<span class="kanban-card-money">${opp.toLocaleString('ru')}</span>` : ''}
+        </div>
+      </div>`;
+    }
+    if (cards.length > MAX_PER_COL) {
+      html += `<div style="text-align:center;padding:8px;color:var(--t3);font-size:11px">… ещё ${(cards.length - MAX_PER_COL).toLocaleString('ru')}</div>`;
+    }
+
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+
+  c.innerHTML = html;
+
+  c.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('click', () => openDealCard(card.dataset.dealId));
+  });
+}
+
+function getStagesSorted() {
+  const stages = dealsState.pipeline?.stages || {};
+  return Object.values(stages).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+}
+
+function getUsersForFilter() {
+  // Только те юзеры что реально упомянуты в сделках как ответственные
+  const seen = new Set();
+  for (const d of dealsState.deals) {
+    if (d.responsibleUid) seen.add(d.responsibleUid);
+  }
+  const arr = [];
+  for (const uid of seen) {
+    const u = dealsState.users[uid];
+    if (u) {
+      arr.push({
+        uid,
+        fullName: `${u.lastName || ''} ${u.name || ''}`.trim() || u.email,
+      });
+    }
+  }
+  return arr.sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
+}
+
+function openDealCard(bitrixId) {
+  const deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
+  if (!deal) return;
+
+  const stage = dealsState.pipeline?.stages?.[deal.stageId];
+  const stageName = stage?.name || deal.stageId || '—';
+  const respUser = dealsState.users[deal.responsibleUid];
+  const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
+  const respEmail = respUser?.email || '';
+  const createdByUser = dealsState.users[deal.createdByUid];
+  const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
+
+  // Bitrix URL
+  const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/deal/details/${deal.bitrixId}/`;
+
+  let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
+    <div class="modal">
+      <button class="close-x" onclick="closeDealCard()">×</button>
+      <h2>${escapeHtml(deal.title || '(без названия)')}</h2>
+      <div class="modal-sub">
+        ID: <code>${escapeHtml(deal.bitrixId)}</code> · 
+        <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a>
+      </div>
+
+      <div class="section-h">Основное</div>
+      <div class="field-grid">
+        <div class="fl">Стадия</div>
+        <div class="fv"><span class="stage-badge ${stage?.semantics === 'S' ? 'success' : stage?.semantics === 'F' ? 'failed' : ''}">${escapeHtml(stageName)}</span></div>
+        
+        <div class="fl">Сумма</div>
+        <div class="fv">${deal.opportunity ? `<span class="money">${deal.opportunity.toLocaleString('ru')} ${escapeHtml(deal.currency || '')}</span>` : '<span class="empty-cell">не указана</span>'}</div>
+        
+        ${deal.probability ? `<div class="fl">Вероятность</div><div class="fv">${deal.probability}%</div>` : ''}
+        
+        <div class="fl">Ответственный</div>
+        <div class="fv">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</div>
+        
+        <div class="fl">Создал</div>
+        <div class="fv">${escapeHtml(createdByName)}</div>
+        
+        <div class="fl">Дата создания</div>
+        <div class="fv">${deal.bitrixDateCreate ? new Date(deal.bitrixDateCreate).toLocaleString('ru') : '—'}</div>
+        
+        <div class="fl">Изменено</div>
+        <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
+        
+        <div class="fl">Закрыто</div>
+        <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
+        
+        ${deal.contactId ? `<div class="fl">Контакт</div><div class="fv"><span class="muted">${escapeHtml(deal.contactId)}</span> <span style="color:var(--t3);font-size:11px">(контакты ещё не мигрированы)</span></div>` : ''}
+      </div>
+
+      ${deal.comments ? `<div class="section-h">Комментарии</div><div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px">${escapeHtml(deal.comments)}</div>` : ''}
+
+      ${renderCustomFieldsBlock(deal.customFields)}
+    </div>
+  </div>`;
+
+  // Add to body
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+  document.body.style.overflow = 'hidden';
+}
+
+window.closeDealCard = function() {
+  const m = document.querySelector('.modal-overlay');
+  if (m) m.remove();
+  document.body.style.overflow = '';
+};
+
+function renderCustomFieldsBlock(cfData) {
+  if (!cfData || Object.keys(cfData).length === 0) return '';
+  const schema = dealsState.customSchema || {};
+
+  let html = `<div class="section-h">Кастомные поля</div><div class="cf-grid">`;
+  for (const [field, value] of Object.entries(cfData)) {
+    const meta = schema[field] || {};
+    const label = meta.label || field;
+    const display = formatCfValue(value, meta);
+    html += `<div class="fl">${escapeHtml(label)}</div><div class="fv">${display}</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function formatCfValue(value, meta) {
+  if (value === null || value === undefined || value === '') return '<span class="empty-cell">—</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="empty-cell">—</span>';
+    // Для enum нужно резолвить через meta.list
+    if (meta.type === 'enumeration' && meta.list) {
+      const labels = value.map(v => {
+        const item = meta.list.find(l => String(l.ID) === String(v) || String(l.VALUE) === String(v));
+        return item ? escapeHtml(item.VALUE) : escapeHtml(String(v));
+      });
+      return labels.join(', ');
+    }
+    return value.map(v => escapeHtml(String(v))).join(', ');
+  }
+  if (meta.type === 'enumeration' && meta.list) {
+    const item = meta.list.find(l => String(l.ID) === String(value));
+    return item ? escapeHtml(item.VALUE) : escapeHtml(String(value));
+  }
+  if (meta.type === 'boolean') return value === '1' || value === true ? '✓ Да' : '✗ Нет';
+  if (meta.type === 'date' || meta.type === 'datetime') {
+    try { return new Date(value).toLocaleString('ru'); } catch { return escapeHtml(String(value)); }
+  }
+  if (meta.type === 'money' || meta.type === 'double') {
+    const num = parseFloat(value);
+    return isNaN(num) ? escapeHtml(String(value)) : `<span class="money">${num.toLocaleString('ru')}</span>`;
+  }
+  return escapeHtml(String(value));
 }
 
 function renderEmptyPage(el, title, sub) {
