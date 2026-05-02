@@ -674,16 +674,118 @@ function renderMigration(el) {
     </div>
 
     <div class="card">
-      <h3>Шаг 3: Воронка UniqBook Старт</h3>
-      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции пользователей</div>
+      <h3>Шаг 3: Диагностика воронки UniqBook Старт</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Read-only анализ выбранной воронки: точное количество сделок, контактов, активностей, файлов. Ничего не пишет в новую базу.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="diagnosePipeline()">📊 Запустить диагностику</button>
+      </div>
+      <div id="pipeline-diag-result" style="display:none;margin-top:10px"></div>
     </div>
 
     <div class="card">
-      <h3>Шаг 4: Задачи</h3>
-      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции воронки</div>
+      <h3>Шаг 4: Миграция сделок</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после диагностики</div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 5: Контакты, активности, файлы</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции сделок</div>
     </div>
   `;
 }
+
+window.diagnosePipeline = async function() {
+  const el = document.getElementById('pipeline-diag-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Запрашиваем Битрикс... это займёт ~30 секунд...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/diagnose-pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, categoryId: 3 })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${d.error}</div>`;
+      return;
+    }
+
+    let html = `<div class="summary">
+      <div class="summary-title" style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:8px">✓ Диагностика завершена</div>
+      <div style="font-size:13px;color:var(--t1);margin-bottom:10px"><b>Воронка:</b> ${escapeHtml(d.pipeline.name)} (ID=${d.pipeline.categoryId})</div>
+    </div>`;
+
+    // Сделки
+    html += `<div style="font-weight:600;font-size:13px;color:var(--t2);margin:14px 0 8px">📦 Сделки</div>`;
+    html += `<div class="stats-grid">
+      <div class="stat"><div class="stat-label">Всего сделок</div><div class="stat-value">${d.deals.total.toLocaleString('ru')}</div></div>
+      <div class="stat"><div class="stat-label">Закрыто</div><div class="stat-value">${d.deals.closed}</div></div>
+      <div class="stat"><div class="stat-label">Со связ. контактом</div><div class="stat-value">${d.deals.withContact}</div></div>
+      <div class="stat"><div class="stat-label">Со связ. компанией</div><div class="stat-value">${d.deals.withCompany}</div></div>
+    </div>`;
+
+    // Стадии
+    html += `<div style="font-weight:600;font-size:13px;color:var(--t2);margin:14px 0 8px">🎯 Стадии воронки (${d.pipeline.stagesCount})</div>`;
+    html += `<table style="margin-bottom:10px"><thead><tr><th>Стадия</th><th>Сделок (выборка)</th></tr></thead><tbody>`;
+    for (const s of d.pipeline.stages) {
+      html += `<tr><td>${escapeHtml(s.name)}</td><td>${s.count}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+
+    // Контакты и компании
+    html += `<div style="font-weight:600;font-size:13px;color:var(--t2);margin:14px 0 8px">👥 Связанные контакты и компании</div>`;
+    html += `<div style="font-size:12px;color:var(--t2);line-height:1.7">
+      Уникальных контактов в выборке: <b>${d.contacts.uniqueInSample}</b><br>
+      Сделок с контактом: <b>${d.contacts.withContactPct}%</b><br>
+      Оценка общего количества контактов в воронке: <b>~${d.contacts.estimatedTotal.toLocaleString('ru')}</b><br>
+      Уникальных компаний в выборке: <b>${d.companies.uniqueInSample}</b>
+    </div>`;
+
+    // Активности
+    html += `<div style="font-weight:600;font-size:13px;color:var(--t2);margin:14px 0 8px">📜 Активности (timeline сделок)</div>`;
+    html += `<div style="font-size:12px;color:var(--t2);line-height:1.7">
+      Всего активностей по сделкам в Битриксе: <b>${d.activities.totalAllPipelinesDeals.toLocaleString('ru')}</b><br>
+      Оценка для воронки UniqBook Старт: <b>~${d.activities.estimatedForThisPipeline.toLocaleString('ru')}</b><br>
+      <span style="color:var(--t3)">Точное число будет известно при миграции</span>
+    </div>`;
+
+    // Кастомные поля
+    html += `<div style="font-weight:600;font-size:13px;color:var(--t2);margin:14px 0 8px">⚙️ Кастомные поля сделок (${d.customFields.total})</div>`;
+    html += `<div style="font-size:12px;color:var(--t3);margin-bottom:8px">Файловых полей: ${d.customFields.fileFields}. Отсортировано по заполненности (% сделок где поле заполнено):</div>`;
+    html += `<div style="max-height:300px;overflow-y:auto;background:var(--bg3);border-radius:8px;padding:8px">
+      <table style="font-size:11px"><thead><tr><th>Поле</th><th>Тип</th><th>Заполнено</th></tr></thead><tbody>`;
+    for (const f of d.customFields.fields.slice(0, 30)) {
+      const color = f.pct > 50 ? 'var(--gn)' : f.pct > 10 ? 'var(--yl)' : 'var(--t3)';
+      html += `<tr>
+        <td><b>${escapeHtml(f.label)}</b><br><span style="color:var(--t3);font-size:10px">${f.fieldName}</span></td>
+        <td style="color:var(--t3)">${f.type}${f.multiple ? ' multi' : ''}</td>
+        <td style="color:${color}"><b>${f.pct}%</b></td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+    if (d.customFields.fields.length > 30) {
+      html += `<div style="font-size:11px;color:var(--t3);margin-top:6px">Показано 30 из ${d.customFields.fields.length}</div>`;
+    }
+
+    // Recommendations
+    html += `<div style="margin-top:18px;padding:12px 16px;background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.3);border-radius:10px">
+      <div style="font-weight:600;color:var(--ac2);font-size:13px;margin-bottom:6px">💡 Дальнейшие шаги</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7">
+        <b>${d.deals.total.toLocaleString('ru')} сделок</b> — миграция займёт ~${Math.ceil(d.deals.total / 200 * 0.5)} мин<br>
+        <b>~${d.contacts.estimatedTotal.toLocaleString('ru')} контактов</b> — ~${Math.ceil(d.contacts.estimatedTotal / 200 * 0.5)} мин<br>
+        <b>~${d.activities.estimatedForThisPipeline.toLocaleString('ru')} активностей</b> — ~${Math.ceil(d.activities.estimatedForThisPipeline / 200 * 0.5)} мин в фоне<br>
+        <span style="color:var(--t3)">Файлы будут скачиваться отдельным процессом в R2</span>
+      </div>
+    </div>`;
+
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${e.message}</div>`;
+  }
+};
 
 window.testBitrix = async function() {
   const el = document.getElementById('bitrix-test-result');
