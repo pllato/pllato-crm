@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pllato CRM</title>
+<style>
+:root {
+  --bg: #0e0e12;
+  --bg2: #16161d;
+  --bg3: #1f1f2a;
+  --bg4: #27273a;
+  --b1: rgba(255,255,255,.08);
+  --b2: rgba(255,255,255,.15);
+  --t1: #f0eefc;
+  --t2: #c5c2db;
+  --t3: #9896b0;
+  --ac: #7c5cfc;
+  --ac2: #a87fff;
+  --acbg: rgba(124,92,252,.12);
+  --acb: rgba(124,92,252,.3);
+  --gn: #3fd88e;
+  --rd: #f05975;
+  --yl: #f5c14b;
+  --r: 10px;
+  --fb: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--fb);
+  background: var(--bg);
+  color: var(--t1);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Login screen ─────────────────────────────────── */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.login-card {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 16px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 420px;
+}
+.logo {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.logo .accent { color: var(--ac); }
+.tagline {
+  font-size: 13px;
+  color: var(--t3);
+  margin-bottom: 24px;
+}
+.btn {
+  background: var(--ac);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  font-family: var(--fb);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 22px;
+  transition: opacity .15s;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.google {
+  background: white;
+  color: #1f1f2a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.btn.secondary {
+  background: var(--bg3);
+  color: var(--t1);
+  border: 1px solid var(--b2);
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 11px;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--b1);
+}
+.input {
+  background: var(--bg3);
+  border: 1px solid var(--b2);
+  border-radius: 10px;
+  color: var(--t1);
+  font-family: var(--fb);
+  font-size: 13px;
+  padding: 11px 14px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.input:focus { outline: none; border-color: var(--ac); }
+.error {
+  background: rgba(240,89,117,.08);
+  border: 1px solid rgba(240,89,117,.3);
+  border-radius: 8px;
+  color: var(--rd);
+  font-size: 12px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+}
+.success {
+  background: rgba(63,216,142,.08);
+  border: 1px solid rgba(63,216,142,.3);
+  border-radius: 8px;
+  color: var(--gn);
+  font-size: 12px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+}
+.link {
+  color: var(--ac2);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 8px;
+}
+.link:hover { text-decoration: underline; }
+
+/* ── App layout ───────────────────────────────────── */
+.app { display: none; min-height: 100vh; }
+.app.active { display: flex; }
+.sidebar {
+  width: 240px;
+  background: var(--bg2);
+  border-right: 1px solid var(--b1);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px;
+}
+.sidebar .logo { font-size: 18px; margin-bottom: 22px; padding: 0 6px; }
+.nav-section {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--t3);
+  padding: 10px 8px 6px;
+  font-weight: 600;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--t2);
+  transition: background .15s;
+}
+.nav-item:hover { background: var(--bg3); color: var(--t1); }
+.nav-item.active { background: var(--acbg); color: var(--ac2); font-weight: 600; }
+.nav-icon { font-size: 16px; }
+.nav-spacer { flex: 1; }
+.user-card {
+  background: var(--bg3);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ac);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.user-name {
+  font-size: 12px;
+  color: var(--t1);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-email {
+  font-size: 11px;
+  color: var(--t3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.signout-btn {
+  background: transparent;
+  border: 1px solid var(--b2);
+  border-radius: 6px;
+  color: var(--t3);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-top: 8px;
+  width: 100%;
+}
+.signout-btn:hover { color: var(--rd); border-color: var(--rd); }
+
+.main {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.page-sub {
+  font-size: 13px;
+  color: var(--t3);
+  margin-bottom: 22px;
+}
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 14px;
+}
+.card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--t2);
+}
+.empty {
+  color: var(--t3);
+  font-size: 13px;
+  padding: 30px 20px;
+  text-align: center;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.stat {
+  background: var(--bg2);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.stat-label { font-size: 11px; color: var(--t3); text-transform: uppercase; letter-spacing: .04em; }
+.stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; color: var(--t1); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 12px;
+  width: auto;
+  margin-bottom: 0;
+}
+.log-area {
+  background: #0a0a0e;
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 11px;
+  color: var(--t2);
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.log-area .ok { color: var(--gn); }
+.log-area .err { color: var(--rd); }
+.log-area .info { color: var(--ac2); }
+.log-area .gray { color: var(--t3); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--b1); }
+th { color: var(--t3); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+td { color: var(--t2); }
+tr:hover td { background: var(--bg3); }
+
+@media (max-width: 720px) {
+  .app { flex-direction: column; }
+  .sidebar { width: 100%; }
+  .main { padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Login Screen ───────────────────────────────────────────── -->
+<div id="login" class="login-wrap">
+  <div class="login-card">
+    <div class="logo">Pllato<span class="accent">.crm</span></div>
+    <div class="tagline">Внутренний портал управления</div>
+
+    <div id="login-error" class="error" style="display:none"></div>
+    <div id="login-success" class="success" style="display:none"></div>
+
+    <button class="btn google" onclick="loginGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.4 5.8 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.2-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.4 5.8 29.4 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3c-2.1 1.4-4.6 2.5-7.3 2.5-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.3 5.3C41.4 35.5 44 30.2 44 24c0-1.3-.2-2.6-.4-3.9z"/></svg>
+      Войти через Google
+    </button>
+
+    <div class="divider">или</div>
+
+    <input type="email" id="login-email" class="input" placeholder="Email" autocomplete="email">
+    <input type="password" id="login-password" class="input" placeholder="Пароль" autocomplete="current-password">
+    <button class="btn" onclick="loginEmail()">Войти по email</button>
+
+    <a class="link" onclick="resetPassword()">Забыли пароль?</a>
+  </div>
+</div>
+
+<!-- ── Main App ───────────────────────────────────────────────── -->
+<div id="app" class="app">
+  <div class="sidebar">
+    <div class="logo">Pllato<span class="accent">.crm</span></div>
+
+    <div class="nav-section">Главное</div>
+    <div class="nav-item" data-page="dashboard">
+      <span class="nav-icon">📊</span><span>Главная</span>
+    </div>
+
+    <div class="nav-section">CRM</div>
+    <div class="nav-item" data-page="contacts">
+      <span class="nav-icon">👥</span><span>Контакты</span>
+    </div>
+    <div class="nav-item" data-page="deals">
+      <span class="nav-icon">💼</span><span>Сделки</span>
+    </div>
+    <div class="nav-item" data-page="tasks">
+      <span class="nav-icon">✅</span><span>Задачи</span>
+    </div>
+
+    <div class="nav-section">Команда</div>
+    <div class="nav-item" data-page="users">
+      <span class="nav-icon">🧑‍💼</span><span>Сотрудники</span>
+    </div>
+
+    <div class="nav-section">Инструменты</div>
+    <div class="nav-item" data-page="migration">
+      <span class="nav-icon">🔄</span><span>Миграция Bitrix</span>
+    </div>
+
+    <div class="nav-spacer"></div>
+
+    <div class="user-card">
+      <div class="user-avatar" id="ux-avatar">?</div>
+      <div style="flex:1;min-width:0">
+        <div class="user-name" id="ux-name">—</div>
+        <div class="user-email" id="ux-email">—</div>
+      </div>
+    </div>
+    <button class="signout-btn" onclick="signOut()">Выйти</button>
+  </div>
+
+  <div class="main" id="main"></div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
+  sendPasswordResetEmail, onAuthStateChanged, signOut as fbSignOut
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import {
+  getDatabase, ref, get, set, onValue, push, update
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js';
+
+// ── Config ───────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
+  authDomain: "pllato-crm.firebaseapp.com",
+  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId: "pllato-crm",
+  storageBucket: "pllato-crm.firebasestorage.app",
+  messagingSenderId: "690738857241",
+  appId: "1:690738857241:web:2356e97c435656890ab188"
+};
+const WORKER_URL = 'https://pllato-crm-worker.uurraa.workers.dev';
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+// Expose to window for inline handlers
+window.fbDb = db;
+window.fbAuth = auth;
+window.WORKER_URL = WORKER_URL;
+window.dbRef = ref;
+window.dbGet = get;
+window.dbSet = set;
+window.dbOn = onValue;
+window.dbPush = push;
+window.dbUpdate = update;
+
+// ── Auth: Google sign-in ─────────────────────────────────
+window.loginGoogle = async function() {
+  showError('');
+  try {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    showError(humanizeAuthError(e));
+  }
+};
+
+window.loginEmail = async function() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if (!email || !pass) { showError('Введите email и пароль'); return; }
+  showError('');
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    showError(humanizeAuthError(e));
+  }
+};
+
+window.resetPassword = async function() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showError('Сначала введите email'); return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showSuccess('Письмо для сброса пароля отправлено на ' + email);
+  } catch (e) {
+    showError(humanizeAuthError(e));
+  }
+};
+
+window.signOut = async function() {
+  await fbSignOut(auth);
+};
+
+function humanizeAuthError(e) {
+  const code = e.code || '';
+  if (code.includes('user-not-found')) return 'Пользователь не найден';
+  if (code.includes('wrong-password') || code.includes('invalid-credential')) return 'Неверный пароль';
+  if (code.includes('invalid-email')) return 'Неправильный формат email';
+  if (code.includes('too-many-requests')) return 'Слишком много попыток. Попробуйте позже';
+  if (code.includes('popup-closed-by-user')) return 'Окно закрыто';
+  if (code.includes('popup-blocked')) return 'Браузер заблокировал всплывающее окно. Разрешите popups для этого сайта.';
+  return e.message || 'Ошибка авторизации';
+}
+function showError(msg) {
+  const el = document.getElementById('login-error');
+  if (msg) { el.textContent = msg; el.style.display = ''; } else { el.style.display = 'none'; }
+  document.getElementById('login-success').style.display = 'none';
+}
+function showSuccess(msg) {
+  const el = document.getElementById('login-success');
+  if (msg) { el.textContent = msg; el.style.display = ''; } else { el.style.display = 'none'; }
+  document.getElementById('login-error').style.display = 'none';
+}
+
+// ── Auth state listener ──────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    initApp(user);
+  } else {
+    document.getElementById('login').style.display = '';
+    document.getElementById('app').classList.remove('active');
+  }
+});
+
+// ── App init ─────────────────────────────────────────────
+async function initApp(user) {
+  // Сохраняем профиль текущего пользователя
+  const profile = {
+    email: user.email,
+    name: user.displayName || user.email.split('@')[0],
+    photoURL: user.photoURL || '',
+    lastLogin: new Date().toISOString(),
+    provider: user.providerData[0]?.providerId || 'unknown',
+  };
+  await update(ref(db, `users/${user.uid}`), profile);
+
+  // UI
+  const initials = (profile.name || 'U').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+  document.getElementById('ux-avatar').textContent = initials;
+  document.getElementById('ux-name').textContent = profile.name;
+  document.getElementById('ux-email').textContent = user.email;
+
+  // Default page
+  navigate('dashboard');
+
+  // Setup nav
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.onclick = () => navigate(el.dataset.page);
+  });
+}
+
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+  const main = document.getElementById('main');
+  if (page === 'dashboard') renderDashboard(main);
+  else if (page === 'contacts') renderEmptyPage(main, 'Контакты', 'Здесь будут все контакты CRM. Сейчас данных нет — мигрируем из Битрикса.');
+  else if (page === 'deals') renderEmptyPage(main, 'Сделки', 'Здесь будут сделки по воронкам. Сейчас данных нет — мигрируем из Битрикса.');
+  else if (page === 'tasks') renderEmptyPage(main, 'Задачи', 'Здесь будут задачи. Сейчас данных нет — мигрируем из Битрикса.');
+  else if (page === 'users') renderUsers(main);
+  else if (page === 'migration') renderMigration(main);
+}
+
+function renderDashboard(el) {
+  el.innerHTML = `
+    <div class="page-title">👋 Добро пожаловать в Pllato CRM</div>
+    <div class="page-sub">Внутренний портал, скоро здесь будут все ваши данные</div>
+
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-label">Контакты</div><div class="stat-value" id="s-contacts">0</div></div>
+      <div class="stat"><div class="stat-label">Сделки</div><div class="stat-value" id="s-deals">0</div></div>
+      <div class="stat"><div class="stat-label">Задачи</div><div class="stat-value" id="s-tasks">0</div></div>
+      <div class="stat"><div class="stat-label">Сотрудники</div><div class="stat-value" id="s-users">0</div></div>
+    </div>
+
+    <div class="card">
+      <h3>🚀 Что дальше</h3>
+      <div style="font-size:13px;color:var(--t2);line-height:1.7">
+        Эта инфраструктура только что развёрнута. Следующие шаги:
+        <br>1. Миграция 88 пользователей из Битрикса (раздел "Миграция Bitrix")
+        <br>2. Миграция воронки UniqBook Старт со сделками
+        <br>3. Миграция задач
+        <br>4. Подключение модулей (CRM, чаты, телефония)
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>✅ Проверка соединения</h3>
+      <div id="conn-status" style="font-size:12px;color:var(--t3)">Проверяем...</div>
+    </div>
+  `;
+
+  // Стат-счётчики
+  loadDashboardStats();
+  // Тест соединения
+  testConnection();
+}
+
+async function loadDashboardStats() {
+  try {
+    const snap = await get(ref(db, '/'));
+    const data = snap.val() || {};
+    document.getElementById('s-contacts').textContent = Object.keys(data.contacts || {}).length;
+    document.getElementById('s-deals').textContent = Object.keys(data.deals || {}).length;
+    document.getElementById('s-tasks').textContent = Object.keys(data.tasks || {}).length;
+    document.getElementById('s-users').textContent = Object.keys(data.users || {}).length;
+  } catch (e) {
+    console.warn('stats error:', e);
+  }
+}
+
+async function testConnection() {
+  const el = document.getElementById('conn-status');
+  try {
+    el.textContent = '⏳ Проверяем Worker...';
+    const r = await fetch(WORKER_URL + '/api/whoami', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: await auth.currentUser.getIdToken() })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      el.innerHTML = `<span style="color:var(--gn)">✓ Worker отвечает</span> · Firebase project: <b>${d.project}</b> · вы: <b>${d.email}</b>`;
+    } else {
+      el.innerHTML = `<span style="color:var(--rd)">✗ Worker ошибка:</span> ${d.error}`;
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:var(--rd)">✗ Worker недоступен:</span> ${e.message}`;
+  }
+}
+
+function renderEmptyPage(el, title, sub) {
+  el.innerHTML = `
+    <div class="page-title">${title}</div>
+    <div class="page-sub">${sub}</div>
+    <div class="card"><div class="empty">Пусто. Запустите миграцию из Битрикса.</div></div>
+  `;
+}
+
+function renderUsers(el) {
+  el.innerHTML = `
+    <div class="page-title">🧑‍💼 Сотрудники</div>
+    <div class="page-sub">Пользователи портала. После миграции здесь будут все 88 сотрудников.</div>
+    <div class="card">
+      <h3>Список</h3>
+      <div id="users-list"><div class="empty">Загрузка...</div></div>
+    </div>
+  `;
+
+  const usersRef = ref(db, 'users');
+  onValue(usersRef, snap => {
+    const users = snap.val() || {};
+    const arr = Object.entries(users).map(([uid, u]) => ({ uid, ...u }));
+    if (!arr.length) {
+      document.getElementById('users-list').innerHTML = '<div class="empty">Пусто. Запустите миграцию пользователей из Битрикса.</div>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Имя</th><th>Email</th><th>Bitrix ID</th><th>Должность</th><th>Активен</th></tr></thead><tbody>';
+    for (const u of arr) {
+      html += `<tr>
+        <td>${escapeHtml(u.name || '—')} ${escapeHtml(u.lastName || '')}</td>
+        <td>${escapeHtml(u.email || '—')}</td>
+        <td>${escapeHtml(u.bitrixId || '—')}</td>
+        <td>${escapeHtml(u.position || '—')}</td>
+        <td>${u.active === false ? '✗' : '✓'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('users-list').innerHTML = html;
+  });
+}
+
+function renderMigration(el) {
+  el.innerHTML = `
+    <div class="page-title">🔄 Миграция Bitrix24</div>
+    <div class="page-sub">Перенос данных из elcalmaty.bitrix24.kz в этот портал</div>
+
+    <div class="card">
+      <h3>Шаг 1: Проверка соединения с Битриксом</h3>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="testBitrix()">🔍 Тест подключения</button>
+      </div>
+      <div id="bitrix-test-result" style="font-size:12px;color:var(--t3)">Не запускался</div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 2: Миграция пользователей</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Создаст 88 пользователей в Firebase Auth с email из Битрикса. Им можно будет войти через Google или сбросом пароля.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="dryRunUsers()">👀 Предварительный просмотр</button>
+        <button class="btn btn-sm" onclick="migrateUsers()" style="background:var(--gn);color:#0e0e12">▶ Запустить миграцию</button>
+      </div>
+      <div id="users-migration-result" class="log-area" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 3: Воронка UniqBook Старт</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции пользователей</div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 4: Задачи</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции воронки</div>
+    </div>
+  `;
+}
+
+window.testBitrix = async function() {
+  const el = document.getElementById('bitrix-test-result');
+  el.innerHTML = '⏳ Запрашиваем Битрикс через Worker...';
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/test-bitrix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      el.innerHTML = `<span style="color:var(--gn)">✓ Битрикс доступен</span><br>
+        Портал: <b>${d.portal}</b><br>
+        Подключён как: <b>${d.user.NAME} ${d.user.LAST_NAME}</b><br>
+        Активных пользователей в Битриксе: <b>${d.usersCount}</b>`;
+    } else {
+      el.innerHTML = `<span style="color:var(--rd)">✗ Ошибка:</span> ${d.error}`;
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:var(--rd)">✗ Worker не отвечает:</span> ${e.message}`;
+  }
+};
+
+window.dryRunUsers = async function() {
+  const el = document.getElementById('users-migration-result');
+  el.style.display = '';
+  el.innerHTML = '⏳ Получаем список пользователей из Битрикса...\n';
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-users?dryRun=1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      el.innerHTML = `<span class="ok">✓ Получено пользователей: ${d.total}</span>\n\n`;
+      el.innerHTML += `Активных: ${d.active}, Неактивных: ${d.inactive}\n`;
+      el.innerHTML += `С email: ${d.withEmail}, Без email: ${d.withoutEmail}\n\n`;
+      el.innerHTML += `Первые 10 пользователей:\n`;
+      for (const u of d.preview.slice(0, 10)) {
+        el.innerHTML += `  ${u.id.padEnd(7)} ${(u.lastName + ' ' + u.name).padEnd(30)} ${u.email || '— нет email'}\n`;
+      }
+      el.innerHTML += `\n<span class="info">Для реальной миграции нажмите "Запустить миграцию"</span>`;
+    } else {
+      el.innerHTML += `<span class="err">✗ ${d.error}</span>`;
+    }
+  } catch (e) {
+    el.innerHTML += `<span class="err">✗ ${e.message}</span>`;
+  }
+};
+
+window.migrateUsers = async function() {
+  if (!confirm('Запустить миграцию пользователей? Это создаст 88 учёток в Firebase Auth.')) return;
+
+  const el = document.getElementById('users-migration-result');
+  el.style.display = '';
+  el.innerHTML = '⏳ Запускаем миграцию...\n';
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      el.innerHTML = `<span class="ok">✓ Миграция завершена</span>\n\n`;
+      el.innerHTML += `Создано: ${d.created}\n`;
+      el.innerHTML += `Уже существовало: ${d.alreadyExisted}\n`;
+      el.innerHTML += `Пропущено (без email): ${d.skipped}\n`;
+      el.innerHTML += `Ошибок: ${d.errors}\n\n`;
+      if (d.errorDetails && d.errorDetails.length) {
+        el.innerHTML += `<span class="err">Ошибки:</span>\n`;
+        for (const e of d.errorDetails) {
+          el.innerHTML += `  ${e.email || '—'}: ${e.error}\n`;
+        }
+      }
+    } else {
+      el.innerHTML += `<span class="err">✗ ${d.error}</span>`;
+    }
+  } catch (e) {
+    el.innerHTML += `<span class="err">✗ ${e.message}</span>`;
+  }
+};
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
