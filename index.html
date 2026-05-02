@@ -1527,7 +1527,7 @@ window.migrateDeals = async function() {
 };
 
 window.migrateContacts = async function() {
-  if (!confirm('Запустить миграцию ~143 741 контактов?\n\nЭто займёт ~2-2.5 часа. Идёт батчами по 50, прогресс сохраняется. Можно прервать и продолжить — миграция возобновится с последнего offset.')) return;
+  if (!confirm('Запустить миграцию ~143 741 контактов?\n\nЭто займёт ~2-2.5 часа. Идёт батчами по 50, прогресс сохраняется. При 429 (рейт-лимит Битрикса) автоматически ждёт 60 сек и продолжает. Можно прервать и продолжить — миграция возобновится с последнего offset.')) return;
 
   // Wake Lock — не давать экрану засыпать
   let wakeLock = null;
@@ -1539,12 +1539,31 @@ window.migrateContacts = async function() {
   el.style.display = '';
   el.innerHTML = '⏳ Запускаем миграцию контактов...\n';
 
+  // Если есть сохранённое состояние — стартуем с него
   let offset = 0;
   let totalProcessed = 0;
+  let resumeOffset = 0; // сколько уже было обработано до этой сессии
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const stateR = await fetch(`${firebaseConfig.databaseURL.replace(/\/$/,'')}/migrationState/contacts.json?auth=${idToken}`);
+    if (stateR.ok) {
+      const st = await stateR.json();
+      if (st && st.processed && !st.isLast) {
+        offset = st.processed;
+        totalProcessed = st.processed;
+        resumeOffset = st.processed;
+        el.innerHTML += `<span class="info">↪ Продолжаем с offset ${offset.toLocaleString('ru')}</span>\n`;
+      }
+    }
+  } catch {}
+
   let totalErrors = 0;
   let total = null;
   let companyIdsCollected = 0;
   let customFieldsCount = null;
+  let retry429 = 0;
+  const MAX_429_RETRIES = 20; // ~20 минут ожидания максимум подряд
+  const RETRY_WAIT_MS = 60_000; // 60 секунд между ретраями
   const startedAt = Date.now();
 
   while (true) {
@@ -1558,10 +1577,27 @@ window.migrateContacts = async function() {
       const d = await r.json();
 
       if (!d.ok) {
+        // ── Auto-retry на 429 (Bitrix rate limit) ──
+        const is429 = (d.error || '').includes('429');
+        if (is429 && retry429 < MAX_429_RETRIES) {
+          retry429++;
+          const baseHtml = el.innerHTML; // снимок до паузы
+          const waitS = RETRY_WAIT_MS / 1000;
+          for (let i = waitS; i > 0; i--) {
+            el.innerHTML = baseHtml + '\n<span class="warn">[пауза] Bitrix лимит (429). Ждём ' + i + ' сек... (попытка ' + retry429 + '/' + MAX_429_RETRIES + ', offset ' + offset.toLocaleString('ru') + ')</span>';
+            el.scrollTop = el.scrollHeight;
+            await new Promise(res => setTimeout(res, 1000));
+          }
+          el.innerHTML = baseHtml + '\n<span class="info">[повтор] Возобновляем запрос...</span>\n';
+          continue; // не двигаем offset
+        }
         el.innerHTML += `\n<span class="err">✗ Ошибка: ${d.error}</span>\n`;
         el.innerHTML += `<span class="info">Можно нажать "Перенести контакты" снова — продолжится с offset ${offset}</span>\n`;
         break;
       }
+
+      // Успех — сбрасываем счётчик 429
+      retry429 = 0;
 
       total = d.total;
       totalProcessed += d.processed;
@@ -1572,9 +1608,12 @@ window.migrateContacts = async function() {
       }
 
       const elapsed = Math.round((Date.now() - startedAt) / 1000);
-      const speed = totalProcessed > 0 ? (totalProcessed / elapsed).toFixed(1) : 0;
+      // Скорость по текущей сессии (без уже-мигрированных при resume)
+      const elapsedSafe = Math.max(elapsed, 1);
+      const speedNum = (totalProcessed - resumeOffset) / elapsedSafe;
+      const speed = speedNum > 0 ? speedNum.toFixed(1) : '0.0';
       const remaining = total - totalProcessed;
-      const etaSec = speed > 0 ? Math.round(remaining / speed) : 0;
+      const etaSec = speedNum > 0 ? Math.round(remaining / speedNum) : 0;
       const etaH = Math.floor(etaSec / 3600);
       const etaMin = Math.floor((etaSec % 3600) / 60);
       const etaS = etaSec % 60;
