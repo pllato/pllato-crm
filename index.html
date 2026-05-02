@@ -739,36 +739,94 @@ window.dryRunUsers = async function() {
 };
 
 window.migrateUsers = async function() {
-  if (!confirm('Запустить миграцию пользователей? Это создаст 88 учёток в Firebase Auth.')) return;
+  if (!confirm('Запустить миграцию пользователей? Это создаст до 88 учёток в Firebase Auth.\n\nМиграция идёт батчами по 20 человек. Прогресс сохраняется — если что-то прервётся, можно продолжить.')) return;
+
+  // Wake Lock — не даём браузеру усыпить вкладку пока идёт миграция
+  let wakeLock = null;
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('Wake Lock активирован');
+    } catch (e) {
+      console.warn('Wake Lock не сработал:', e.message);
+    }
+  }
 
   const el = document.getElementById('users-migration-result');
   el.style.display = '';
   el.innerHTML = '⏳ Запускаем миграцию...\n';
-  try {
-    const idToken = await auth.currentUser.getIdToken();
-    const r = await fetch(WORKER_URL + '/api/migrate-users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
-    });
-    const d = await r.json();
-    if (d.ok) {
-      el.innerHTML = `<span class="ok">✓ Миграция завершена</span>\n\n`;
-      el.innerHTML += `Создано: ${d.created}\n`;
-      el.innerHTML += `Уже существовало: ${d.alreadyExisted}\n`;
-      el.innerHTML += `Пропущено (без email): ${d.skipped}\n`;
-      el.innerHTML += `Ошибок: ${d.errors}\n\n`;
-      if (d.errorDetails && d.errorDetails.length) {
-        el.innerHTML += `<span class="err">Ошибки:</span>\n`;
-        for (const e of d.errorDetails) {
-          el.innerHTML += `  ${e.email || '—'}: ${e.error}\n`;
-        }
+
+  let offset = 0;
+  let totalCreated = 0;
+  let totalExisted = 0;
+  let totalSkipped = 0;
+  let totalErrors = 0;
+  let total = null;
+  let allErrors = [];
+
+  while (true) {
+    try {
+      const idToken = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_URL}/api/migrate-users?batch=1&offset=${offset}&limit=20`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken })
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        el.innerHTML += `\n<span class="err">✗ Ошибка: ${d.error}</span>\n`;
+        el.innerHTML += `<span class="info">Можно попробовать снова — миграция продолжится с ${offset}</span>\n`;
+        break;
       }
-    } else {
-      el.innerHTML += `<span class="err">✗ ${d.error}</span>`;
+
+      total = d.total;
+      totalCreated += d.created;
+      totalExisted += d.alreadyExisted;
+      totalSkipped += d.skipped;
+      totalErrors += d.errors;
+      if (d.errorDetails) allErrors.push(...d.errorDetails);
+
+      // Прогресс-бар
+      const processed = offset + d.processed;
+      const pct = Math.round(processed / total * 100);
+      el.innerHTML = `<span class="info">⚙ Обработано ${processed} из ${total} (${pct}%)</span>\n\n`;
+      el.innerHTML += `Создано: <span class="ok">${totalCreated}</span> · Обновлено: ${totalExisted} · Пропущено (без email): ${totalSkipped} · Ошибок: ${totalErrors > 0 ? `<span class="err">${totalErrors}</span>` : 0}\n\n`;
+      el.innerHTML += `Последний батч:\n`;
+      for (const u of (d.processedNames || []).slice(-10)) {
+        const statusColor = u.status === 'created' ? 'ok' : u.status.startsWith('error') ? 'err' : 'gray';
+        el.innerHTML += `  <span class="${statusColor}">${u.id.padEnd(6)} ${(u.name || '—').padEnd(28)} ${u.status}</span>\n`;
+      }
+      el.scrollTop = el.scrollHeight;
+
+      if (d.isLast) {
+        el.innerHTML += `\n<span class="ok">✓ Миграция завершена!</span>\n\n`;
+        el.innerHTML += `Всего создано: <span class="ok">${totalCreated}</span>\n`;
+        el.innerHTML += `Уже существовало: ${totalExisted}\n`;
+        el.innerHTML += `Пропущено (без email): ${totalSkipped}\n`;
+        el.innerHTML += `Ошибок: ${totalErrors > 0 ? `<span class="err">${totalErrors}</span>` : 0}\n`;
+        if (allErrors.length) {
+          el.innerHTML += `\n<span class="err">Ошибки:</span>\n`;
+          for (const e of allErrors.slice(0, 20)) {
+            el.innerHTML += `  ${e.email || '—'}: ${e.error}\n`;
+          }
+        }
+        el.innerHTML += `\n<span class="info">Откройте раздел "Сотрудники" чтобы увидеть всех пользователей.</span>`;
+        if (wakeLock) { wakeLock.release(); wakeLock = null; }
+        break;
+      }
+
+      offset = d.nextOffset;
+
+      // Маленькая пауза между батчами чтобы не перегружать
+      await new Promise(r => setTimeout(r, 500));
+
+    } catch (e) {
+      el.innerHTML += `\n<span class="err">✗ ${e.message}</span>\n`;
+      el.innerHTML += `<span class="info">Сеть прервалась. Можно нажать "Запустить миграцию" заново — она пропустит тех кто уже создан.</span>\n`;
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      break;
     }
-  } catch (e) {
-    el.innerHTML += `<span class="err">✗ ${e.message}</span>`;
   }
 };
 
