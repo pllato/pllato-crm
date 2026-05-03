@@ -1402,8 +1402,34 @@ function renderMigration(el) {
     </div>
 
     <div class="card">
-      <h3>Шаг 6: Компании, активности, файлы</h3>
-      <div style="font-size:12px;color:var(--t3)">Будет доступно после миграции контактов</div>
+      <h3>Шаг 6: Миграция компаний</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Перенос всех компаний из Битрикса. Их у тебя ~4 — займёт пару секунд.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="migrateCompanies()" style="background:var(--gn);color:#0e0e12">🏢 Перенести компании</button>
+      </div>
+      <div id="companies-mig-result" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 7: Диагностика дел и задач</h3>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:10px">
+        Read-only анализ для планирования следующих миграций. Ничего не пишет в новую базу.
+        <br><b>Дела</b> = записи в таймлайне CRM (звонки, письма, мессенджеры, заметки) — endpoint <code>crm.activity</code>
+        <br><b>Задачи</b> = модуль "Задачи и проекты" Битрикса — endpoint <code>tasks.task</code>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" onclick="diagnoseActivities()">📞 Диагностика дел</button>
+        <button class="btn btn-sm" onclick="diagnoseTasks()">✅ Диагностика задач</button>
+      </div>
+      <div id="activities-diag-result" style="display:none;margin-top:10px"></div>
+      <div id="tasks-diag-result" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Шаг 8: Миграция дел, задач, файлов</h3>
+      <div style="font-size:12px;color:var(--t3)">Будет доступно после диагностики выше — там увидим объёмы и решим как переносить</div>
     </div>
   `;
 }
@@ -1664,6 +1690,158 @@ function loadDashboardStatsIfPossible() {
   const fn = window._reloadStats;
   if (fn) fn();
 }
+
+window.migrateCompanies = async function() {
+  const el = document.getElementById('companies-mig-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Переносим компании...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/migrate-companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${d.error}</div>`;
+      return;
+    }
+    const sampleHtml = (d.sampleNames || []).length
+      ? `<div style="font-size:11px;color:var(--t3);margin-top:6px">Названия: ${(d.sampleNames || []).map(escapeHtml).join(', ')}</div>`
+      : '';
+    el.innerHTML = `<div style="background:rgba(63,216,142,.06);border:1px solid rgba(63,216,142,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--gn);font-weight:600;font-size:13px;margin-bottom:8px">✓ Компании перенесены</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7">
+        <b>Всего:</b> ${d.processed} из ${d.total}<br>
+        <b>Ошибок:</b> ${d.errors}<br>
+        <b>Кастомных полей в схеме:</b> ${d.customFieldsCount}
+      </div>
+      ${sampleHtml}
+    </div>`;
+    loadDashboardStatsIfPossible();
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${e.message}</div>`;
+  }
+};
+
+window.diagnoseActivities = async function() {
+  const el = document.getElementById('activities-diag-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Анализируем дела (~30 сек)...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/diagnose-activities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${d.error}</div>`;
+      return;
+    }
+    const typeRows = (d.byType || [])
+      .sort((a, b) => b.count - a.count)
+      .map(t => `<tr><td style="padding:3px 8px">${escapeHtml(t.name)}</td><td style="padding:3px 8px;text-align:right">${t.count}</td></tr>`)
+      .join('');
+    const ownerRows = (d.byOwnerType || [])
+      .sort((a, b) => b.count - a.count)
+      .map(o => `<tr><td style="padding:3px 8px">${escapeHtml(o.name)}</td><td style="padding:3px 8px;text-align:right">${o.count}</td></tr>`)
+      .join('');
+    const providerRows = (d.byProvider || [])
+      .filter(p => p.provider)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+      .map(p => `<tr><td style="padding:3px 8px">${escapeHtml(p.provider)}</td><td style="padding:3px 8px;text-align:right">${p.count}</td></tr>`)
+      .join('');
+
+    const etaH = Math.floor(d.estimatedMigrationMinutes / 60);
+    const etaM = d.estimatedMigrationMinutes % 60;
+    const etaText = etaH > 0 ? `~${etaH}ч ${etaM}м` : `~${etaM}м`;
+
+    el.innerHTML = `<div style="background:rgba(127,99,232,.06);border:1px solid rgba(127,99,232,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--ac2);font-weight:600;font-size:13px;margin-bottom:10px">📞 Диагностика дел (CRM activity)</div>
+
+      <div style="font-size:12px;color:var(--t2);line-height:1.8">
+        <b>Всего дел:</b> ${d.totalAll.toLocaleString('ru')}<br>
+        <b>Привязано к сделкам:</b> ${d.totalDealActivities.toLocaleString('ru')}<br>
+        <b>Привязано к контактам:</b> ${d.totalContactActivities.toLocaleString('ru')}<br>
+        <b>Дел воронки UniqBook (оценка):</b> ~${d.estimatedUniqBookActivities.toLocaleString('ru')}<br>
+        <b>Всего сделок в Битриксе:</b> ${d.totalDealsAll.toLocaleString('ru')}<br>
+        <b>Завершённых в выборке:</b> ${d.completedInSample}/${d.sampleSize}<br>
+        <b>С файлами в выборке:</b> ${d.activitiesWithFilesInSample}/${d.sampleSize} (среднее ${d.avgFilesPerActivityWithFiles} файлов на дело)<br>
+        <b>Оценка общего числа файлов:</b> ~${d.estimatedTotalFiles.toLocaleString('ru')}<br>
+        <b>Оценка времени миграции:</b> ${etaText}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+        <div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:4px">По типам (sample)</div>
+          <table style="font-size:11px;width:100%">${typeRows}</table>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:4px">По владельцам (sample)</div>
+          <table style="font-size:11px;width:100%">${ownerRows}</table>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:4px">По провайдерам (sample)</div>
+          <table style="font-size:11px;width:100%">${providerRows || '<tr><td style="padding:3px 8px;color:var(--t3)">нет</td></tr>'}</table>
+        </div>
+      </div>
+    </div>`;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${e.message}</div>`;
+  }
+};
+
+window.diagnoseTasks = async function() {
+  const el = document.getElementById('tasks-diag-result');
+  el.style.display = '';
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3)">⏳ Анализируем задачи (~30 сек)...</div>';
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const r = await fetch(WORKER_URL + '/api/diagnose-tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      el.innerHTML = `<div style="color:var(--rd)">✗ ${d.error}</div>`;
+      return;
+    }
+    const statusRows = (d.byStatus || [])
+      .sort((a, b) => b.count - a.count)
+      .map(s => `<tr><td style="padding:3px 8px">${escapeHtml(s.name)}</td><td style="padding:3px 8px;text-align:right">${s.count}</td></tr>`)
+      .join('');
+
+    const etaH = Math.floor(d.estimatedMigrationMinutes / 60);
+    const etaM = d.estimatedMigrationMinutes % 60;
+    const etaText = etaH > 0 ? `~${etaH}ч ${etaM}м` : `~${etaM}м`;
+
+    el.innerHTML = `<div style="background:rgba(127,99,232,.06);border:1px solid rgba(127,99,232,.3);border-radius:10px;padding:14px 18px">
+      <div style="color:var(--ac2);font-weight:600;font-size:13px;margin-bottom:10px">✅ Диагностика задач (Bitrix tasks)</div>
+
+      <div style="font-size:12px;color:var(--t2);line-height:1.8">
+        <b>Всего задач:</b> ${d.totalTasks.toLocaleString('ru')}<br>
+        <b>В выборке (50):</b> с дедлайном ${d.withDeadline}, со ссылкой на CRM ${d.withCrmLink}, с комментариями ${d.withComments}, с чек-листом ${d.withChecklist}, в группах ${d.withGroup}<br>
+        <b>Уникальных ответственных в выборке:</b> ${d.uniqueResponsibles}<br>
+        <b>Рабочих групп в Битриксе:</b> ${d.groupsCount}<br>
+        <b>С файлами в выборке:</b> ${d.tasksWithFilesInSample}/${d.sampleSize}<br>
+        <b>Оценка общего числа файлов в задачах:</b> ~${d.estimatedTotalFiles.toLocaleString('ru')}<br>
+        <b>Оценка времени миграции:</b> ${etaText}
+      </div>
+
+      <div style="margin-top:14px">
+        <div style="font-size:11px;color:var(--t3);margin-bottom:4px">По статусам (sample)</div>
+        <table style="font-size:11px;width:100%;max-width:380px">${statusRows}</table>
+      </div>
+    </div>`;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--rd)">✗ ${e.message}</div>`;
+  }
+};
 
 window.diagnosePipeline = async function() {
   const el = document.getElementById('pipeline-diag-result');
