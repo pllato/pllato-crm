@@ -128,6 +128,9 @@ export default {
         const fileId = decodeURIComponent(path.slice('/api/file/'.length));
         return await handleGetFile(request, env, fileId, ctx);
       }
+      if (path === '/api/tasks/bulk-update' && request.method === 'POST') {
+        return await handleBulkUpdateTasks(request, env);
+      }
       return json({ ok: false, error: 'Not found' }, 404);
     } catch (e) {
       return json({ ok: false, error: e.message, stack: e.stack }, 500);
@@ -310,6 +313,147 @@ async function handleGetFile(request, env, fileId, ctx) {
   };
   if (obj.size != null) headers['Content-Length'] = String(obj.size);
   return new Response(obj.body, { headers });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//   POST /api/tasks/bulk-update
+//   Body: { idToken, taskIds: [...], updates: { status?, priority?, responsibleBitrixId? } }
+//
+//   Массовое обновление задач: для каждого taskId дёргает
+//   tasks.task.update в Битриксе (через bitrixBatch по 50 за раз),
+//   затем обновляет соответствующие записи в Firebase /tasks/task_{id}.
+//
+//   Возвращает: { ok, total, success, errors, errorDetails }
+// ═══════════════════════════════════════════════════════════════
+async function handleBulkUpdateTasks(request, env) {
+  const { idToken, taskIds, updates } = await request.json();
+  if (!idToken) return json({ ok: false, error: 'idToken required' }, 400);
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    return json({ ok: false, error: 'taskIds must be non-empty array' }, 400);
+  }
+  if (!updates || typeof updates !== 'object') {
+    return json({ ok: false, error: 'updates required' }, 400);
+  }
+
+  const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+  const verified = await verifyFirebaseIdToken(idToken, sa);
+  if (!verified) return json({ ok: false, error: 'Invalid token' }, 401);
+
+  const webhook = env.BITRIX_WEBHOOK_URL;
+  if (!webhook) return json({ ok: false, error: 'BITRIX_WEBHOOK_URL not set' }, 500);
+
+  // Маппинг наших полей → Битрикс fields для tasks.task.update
+  const bitrixFields = {};
+  if (updates.status != null) {
+    const s = parseInt(updates.status);
+    if (s >= 1 && s <= 7) bitrixFields.STATUS = s;
+  }
+  if (updates.priority != null) {
+    const p = parseInt(updates.priority);
+    if (p >= 0 && p <= 2) bitrixFields.PRIORITY = p;
+  }
+  if (updates.responsibleBitrixId) {
+    const r = String(updates.responsibleBitrixId);
+    if (/^\d+$/.test(r)) bitrixFields.RESPONSIBLE_ID = r;
+  }
+  if (Object.keys(bitrixFields).length === 0) {
+    return json({ ok: false, error: 'no valid fields to update' }, 400);
+  }
+
+  const accessToken = await getServiceAccountToken(sa, [
+    'https://www.googleapis.com/auth/firebase.database',
+    'https://www.googleapis.com/auth/userinfo.email',
+  ]);
+
+  // Если меняем исполнителя — нужен mapping bitrixId → firebaseUid для записи
+  // в Firebase /tasks/task_id/responsibleUid
+  let userMapping = null;
+  if (bitrixFields.RESPONSIBLE_ID) {
+    userMapping = (await firebaseDbGet(sa.project_id, accessToken, 'userMapping/bitrix')) || {};
+  }
+
+  // Безопасная санация taskIds — только цифры
+  const safeIds = [];
+  for (const tid of taskIds) {
+    const s = String(tid).replace(/^task_/, '').trim();
+    if (/^\d+$/.test(s)) safeIds.push(s);
+  }
+  if (safeIds.length === 0) {
+    return json({ ok: false, error: 'no valid taskIds (must be numeric)' }, 400);
+  }
+
+  let success = 0;
+  let errors = 0;
+  const errorDetails = [];
+  const fbUpdates = {};
+  const nowIso = new Date().toISOString();
+
+  // Битрикс batch — до 50 операций за вызов. Делаем порциями.
+  const BATCH = 50;
+  for (let i = 0; i < safeIds.length; i += BATCH) {
+    const chunk = safeIds.slice(i, i + BATCH);
+    const commands = {};
+    for (const tid of chunk) {
+      commands[`u${tid}`] = {
+        method: 'tasks.task.update',
+        params: { taskId: tid, fields: bitrixFields },
+      };
+    }
+    const r = await bitrixBatch(webhook, commands);
+    if (r.error) {
+      // Глобальная ошибка batch — все задачи в чанке считаем фейлом
+      for (const tid of chunk) {
+        errors++;
+        errorDetails.push({ taskId: tid, error: 'batch: ' + r.error });
+      }
+      continue;
+    }
+    const results = r.result?.result || {};
+    const errs = r.result?.result_error || {};
+    for (const tid of chunk) {
+      const k = `u${tid}`;
+      if (errs[k]) {
+        errors++;
+        const e = errs[k];
+        errorDetails.push({
+          taskId: tid,
+          error: typeof e === 'object' ? (e.error_description || e.error || JSON.stringify(e)) : String(e),
+        });
+        continue;
+      }
+      success++;
+      const taskKey = `task_${tid}`;
+      // Firebase: те же поля + bitrixChangedDate
+      if (bitrixFields.STATUS != null) {
+        fbUpdates[`tasks/${taskKey}/status`] = bitrixFields.STATUS;
+        if (bitrixFields.STATUS === 5) fbUpdates[`tasks/${taskKey}/bitrixClosedDate`] = nowIso;
+      }
+      if (bitrixFields.PRIORITY != null) {
+        fbUpdates[`tasks/${taskKey}/priority`] = bitrixFields.PRIORITY;
+      }
+      if (bitrixFields.RESPONSIBLE_ID) {
+        fbUpdates[`tasks/${taskKey}/bitrixResponsibleId`] = bitrixFields.RESPONSIBLE_ID;
+        const fbUid = userMapping?.[bitrixFields.RESPONSIBLE_ID]?.firebaseUid || null;
+        fbUpdates[`tasks/${taskKey}/responsibleUid`] = fbUid;
+      }
+      fbUpdates[`tasks/${taskKey}/bitrixChangedDate`] = nowIso;
+      fbUpdates[`tasks/${taskKey}/bulkUpdatedAt`] = nowIso;
+    }
+  }
+
+  // Применяем все Firebase обновления одним запросом
+  if (Object.keys(fbUpdates).length > 0) {
+    await firebaseDbMultiUpdate(sa.project_id, accessToken, '/', fbUpdates);
+  }
+
+  return json({
+    ok: true,
+    total: safeIds.length,
+    success,
+    errors,
+    errorDetails: errorDetails.slice(0, 10),
+    fieldsApplied: Object.keys(bitrixFields),
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
