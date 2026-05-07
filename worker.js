@@ -126,7 +126,7 @@ export default {
       }
       if (path.startsWith('/api/file/') && request.method === 'POST') {
         const fileId = decodeURIComponent(path.slice('/api/file/'.length));
-        return await handleGetFile(request, env, fileId);
+        return await handleGetFile(request, env, fileId, ctx);
       }
       return json({ ok: false, error: 'Not found' }, 404);
     } catch (e) {
@@ -142,7 +142,7 @@ export default {
 //   contentType) читает из /filesQueue/{id}. Используется фронтендом
 //   для скачивания файлов задач/активностей в карточке.
 // ═══════════════════════════════════════════════════════════════
-async function handleGetFile(request, env, fileId) {
+async function handleGetFile(request, env, fileId, ctx) {
   if (!fileId || !/^[A-Za-z0-9_-]+$/.test(fileId)) {
     return json({ ok: false, error: 'invalid fileId' }, 400);
   }
@@ -196,12 +196,10 @@ async function handleGetFile(request, env, fileId) {
         bitrixName: fileName, bitrixSize: fileSize,
       }, 404);
     }
-    const buf = await dlRes.arrayBuffer();
     const safeName = fileName.replace(/[\\/<>:"'|?*\x00-\x1f]/g, '_').slice(0, 200);
     const r2Key = `files/${fileId}/${safeName}`;
     const contentType = dlRes.headers.get('content-type') || fileType;
-
-    await env.BUCKET.put(r2Key, buf, {
+    const r2Meta = {
       httpMetadata: { contentType },
       customMetadata: {
         bitrixFileId: String(fileId),
@@ -209,9 +207,66 @@ async function handleGetFile(request, env, fileId) {
         originalName: fileName,
         rescueMethod: methodUsed,
       },
-    });
+    };
 
-    // Обновляем filesQueue — теперь файл нормальный
+    // Размер из метаданных (или Content-Length). Если файл большой —
+    // нельзя буферить в arrayBuffer (Cloudflare Worker лимит 128MB RAM).
+    // Для больших — стримим body.tee(): один поток в R2, второй
+    // пользователю; обновление filesQueue в ctx.waitUntil после R2 PUT.
+    const declaredLen = parseInt(dlRes.headers.get('content-length')) || fileSize || 0;
+    const LARGE_THRESHOLD = 50 * 1024 * 1024; // 50MB — порог переключения на streaming
+
+    if (declaredLen > LARGE_THRESHOLD || !dlRes.body) {
+      // ── STREAMING (для файлов >50MB или unknown size) ──
+      const [streamForR2, streamForUser] = dlRes.body.tee();
+      const r2Promise = env.BUCKET.put(r2Key, streamForR2, r2Meta);
+
+      const queueUpdates = {
+        [`filesQueue/${fileId}/migrated`]: true,
+        [`filesQueue/${fileId}/permanentlyFailed`]: false,
+        [`filesQueue/${fileId}/r2Key`]: r2Key,
+        [`filesQueue/${fileId}/fileName`]: fileName,
+        [`filesQueue/${fileId}/fileSize`]: fileSize || declaredLen,
+        [`filesQueue/${fileId}/contentType`]: contentType,
+        [`filesQueue/${fileId}/migratedAt`]: new Date().toISOString(),
+        [`filesQueue/${fileId}/lastError`]: null,
+        [`filesQueue/${fileId}/rescued`]: true,
+        [`filesQueue/${fileId}/rescueMode`]: 'streaming',
+      };
+      if (!meta) {
+        queueUpdates[`filesQueue/${fileId}/bitrixFileId`] = String(fileId);
+        queueUpdates[`filesQueue/${fileId}/source`] = 'rescue';
+        queueUpdates[`filesQueue/${fileId}/addedAt`] = new Date().toISOString();
+      }
+
+      // Обновление filesQueue делаем после успешного R2 PUT в фоне
+      if (ctx && ctx.waitUntil) {
+        ctx.waitUntil((async () => {
+          try {
+            await r2Promise;
+            await firebaseDbMultiUpdate(sa.project_id, accessToken, '/', queueUpdates);
+          } catch (e) {
+            console.error('streaming rescue post-R2 update failed:', e.message);
+          }
+        })());
+      }
+
+      const headers = {
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+        'Cache-Control': 'private, max-age=300',
+        'X-Pllato-Rescued': '1',
+        'X-Pllato-Rescue-Mode': 'streaming',
+        ...CORS,
+      };
+      if (declaredLen > 0) headers['Content-Length'] = String(declaredLen);
+      return new Response(streamForUser, { headers });
+    }
+
+    // ── BUFFERED (для файлов <=50MB) — старый путь, проще ──
+    const buf = await dlRes.arrayBuffer();
+    await env.BUCKET.put(r2Key, buf, r2Meta);
+
     const queueUpdates = {
       [`filesQueue/${fileId}/migrated`]: true,
       [`filesQueue/${fileId}/permanentlyFailed`]: false,
@@ -224,7 +279,6 @@ async function handleGetFile(request, env, fileId) {
       [`filesQueue/${fileId}/rescued`]: true,
     };
     if (!meta) {
-      // Файл вообще не был в очереди — добавляем как rescue
       queueUpdates[`filesQueue/${fileId}/bitrixFileId`] = String(fileId);
       queueUpdates[`filesQueue/${fileId}/source`] = 'rescue';
       queueUpdates[`filesQueue/${fileId}/addedAt`] = new Date().toISOString();
