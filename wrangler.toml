@@ -1,0 +1,17 @@
+name = "pllato-crm-worker"
+main = "worker.js"
+compatibility_date = "2026-05-01"
+account_id = "d0655e161d8fca8487f88d55c0eeb215"
+workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "pllato-crm-files"
