@@ -2760,6 +2760,9 @@ async function handleMigrateGroupChats(request, env) {
     const result = r.result || {};
     const messages = Array.isArray(result.messages) ? result.messages : [];
     const usersFromMsg = result.users || {};
+    // Битрикс отдаёт hasMore — это надёжнее, чем messages.length === 100,
+    // потому что фактический max page size может быть 50 (зависит от прав/портала)
+    const bitrixHasMore = result.hasMore === true;
 
     if (messages.length === 0) {
       await firebaseDbSet(sa.project_id, accessToken,
@@ -2806,7 +2809,14 @@ async function handleMigrateGroupChats(request, env) {
 
     await firebaseDbMultiUpdate(sa.project_id, accessToken, '/', updates);
 
-    const hasMore = messages.length === 100;
+    // hasMore: используем Битрикс-сигнал если есть, иначе — есть ли oldestId
+    // (если получили 50+ сообщений и Битрикс не сказал "конец" — продолжаем)
+    const hasMore = bitrixHasMore || (messages.length >= 50 && oldestId);
+    if (!hasMore) {
+      // Помечаем чат как полностью забранный
+      await firebaseDbSet(sa.project_id, accessToken,
+        `groupChats/${chatId}/migrationStatus`, 'done');
+    }
 
     return json({
       ok: true, mode: 'fetch', chatId,
@@ -2815,6 +2825,7 @@ async function handleMigrateGroupChats(request, env) {
       nextLastId: hasMore ? oldestId : null,
       done: !hasMore,
       totalSoFar: currentCount + messages.length,
+      bitrixHasMore,
     });
   }
 
